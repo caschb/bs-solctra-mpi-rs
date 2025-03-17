@@ -1,9 +1,10 @@
 use crate::{
     constants::{I, MAJOR_RADIUS, MINOR_RADIUS, MIU, PI},
-    point::{read_from_file, write_points_to_file, Point},
+    point::{Point, read_from_file, write_points_to_file},
 };
 use clap::error::Result;
 use log::debug;
+use rayon::prelude::*;
 use std::{error::Error, fs, io, path::Path, usize};
 
 pub fn compute_magnetic_field(
@@ -129,6 +130,7 @@ pub fn simulate_particles(
     e_roof: &Vec<Vec<Point>>,
     output_dir: &Path,
     write_frequency: u32,
+    rank: i32,
 ) {
     let length = particles.len();
     let divergent_particle = Point {
@@ -139,20 +141,18 @@ pub fn simulate_particles(
 
     debug!("Total particles: {}", length);
 
-    match write_points_to_file(&particles, output_dir, 0) {
+    match write_points_to_file(&particles, output_dir, 0, rank) {
         Ok(_) => debug!("Wrote points to {:?}", output_dir),
         Err(error) => panic!("Error writing points to file. {}", error),
     };
     for step in 1..total_steps + 1 {
-        for particle in &mut *particles {
-            if *particle == divergent_particle {
-                continue;
-            } else {
+        particles.par_iter_mut().for_each(|particle| {
+            if *particle != divergent_particle {
                 *particle = simulate_step(particle, coils, displacements, e_roof, step_size);
             }
-        }
+        });
         if step % write_frequency == 0 {
-            match write_points_to_file(&particles, output_dir, step) {
+            match write_points_to_file(&particles, output_dir, step, rank) {
                 Ok(_) => debug!("Wrote points to {:?}", output_dir),
                 Err(error) => panic!("Error writing points to file. {}", error),
             };

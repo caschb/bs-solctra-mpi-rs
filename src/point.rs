@@ -1,8 +1,8 @@
 use core::fmt;
 use csv;
 use log::debug;
-use std::error::Error;
-use std::path::{Path, PathBuf};
+use mpi::{datatype::UserDatatype, traits::Equivalence};
+use std::{error::Error, path::{Path, PathBuf}};
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub struct Point {
@@ -39,6 +39,14 @@ impl Point {
     }
 }
 
+unsafe impl Equivalence for Point {
+    type Out = UserDatatype;
+    
+    fn equivalent_datatype() -> Self::Out {
+        mpi::datatype::UncommittedUserDatatype::contiguous(3, &f64::equivalent_datatype()).commit()
+    }
+}
+
 impl fmt::Display for Point {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{},{},{}", self.x, self.y, self.z)
@@ -61,10 +69,11 @@ pub fn write_points_to_file(
     points: &[Point],
     output_dir: &Path,
     step: u32,
+    rank: i32
 ) -> Result<(), Box<dyn Error>> {
     let mut path = PathBuf::new();
     path.push(output_dir);
-    path.push(format!("out_{}.csv", step));
+    path.push(format!("out_{}_{}.csv", rank, step));
     let mut wtr = csv::Writer::from_path(path)?;
     for point in points {
         wtr.serialize(point)?;
