@@ -92,7 +92,6 @@ fn main() {
         info!("Computing simulation")
     }
 
-
     world.barrier();
     let t_start = mpi::time();
     simulation::simulate_particles(
@@ -106,6 +105,7 @@ fn main() {
         args.write_frequency,
         rank,
     );
+    world.barrier();
     let t_end = mpi::time();
     if rank == 0 {
         info!("Finished simulation");
