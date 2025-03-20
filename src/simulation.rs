@@ -20,31 +20,43 @@ pub fn compute_magnetic_field(
         z: 0.0,
     };
 
-    for coil_idx in 0..coils.len() {
-        for point_idx in 0..coils[coil_idx].len() - 1 {
-            let rmi_a = particle.get_displacement(&coils[coil_idx][point_idx]);
-            let rmf_a = particle.get_displacement(&coils[coil_idx][point_idx + 1]);
+    for ((coil, e_roof_slice), displacement_slice) in
+        coils
+        .iter()
+        .zip(e_roof
+            .iter())
+            .zip(displacements
+                .iter())
+    {
+        for (points, (e, displacement)) in coil
+            .windows(2)
+            .zip(e_roof_slice.iter().zip(displacement_slice.iter()))
+        {
+            let rmi_a = particle.get_displacement(&points[0]);
+            let rmf_a = particle.get_displacement(&points[1]);
             let u = Point {
-                x: multiplier * e_roof[coil_idx][point_idx].x,
-                y: multiplier * e_roof[coil_idx][point_idx].y,
-                z: multiplier * e_roof[coil_idx][point_idx].z,
+                x: multiplier * e.x,
+                y: multiplier * e.y,
+                z: multiplier * e.z,
             };
-            let displacement_norm = displacements[coil_idx][point_idx].get_norm();
+            let displacement_norm = displacement.get_norm();
             let rmi_a_norm = rmi_a.get_norm();
             let rmf_a_norm = rmf_a.get_norm();
             let c = ((2.0 * displacement_norm * (rmi_a_norm + rmf_a_norm))
                 / (rmi_a_norm * rmf_a_norm))
-                * ((1.0)
-                    / ((rmi_a_norm + rmf_a_norm) * (rmi_a_norm + rmf_a_norm)
-                        - displacement_norm * displacement_norm));
+                * (1.0 / ((rmi_a_norm + rmf_a_norm).powi(2) - displacement_norm.powi(2)));
+
+            // Compute vector v
             let v = Point {
                 x: rmi_a.x * c,
                 y: rmi_a.y * c,
                 z: rmi_a.z * c,
             };
-            b.x = b.x + ((u.y * v.z) - (u.z * v.y));
-            b.y = b.y - ((u.x * v.z) - (u.z * v.x));
-            b.z = b.z + ((u.x * v.y) - (u.y * v.x));
+
+            // Update b using the cross product of u and v
+            b.x += (u.y * v.z) - (u.z * v.y);
+            b.y -= (u.x * v.z) - (u.z * v.x);
+            b.z += (u.x * v.y) - (u.y * v.x);
         }
     }
     b
