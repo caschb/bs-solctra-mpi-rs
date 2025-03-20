@@ -21,19 +21,14 @@ pub fn compute_magnetic_field(
     };
 
     for ((coil, e_roof_slice), displacement_slice) in
-        coils
-        .iter()
-        .zip(e_roof
-            .iter())
-            .zip(displacements
-                .iter())
+        coils.iter().zip(e_roof.iter()).zip(displacements.iter())
     {
         for (points, (e, displacement)) in coil
             .windows(2)
             .zip(e_roof_slice.iter().zip(displacement_slice.iter()))
         {
-            let rmi_a = particle.get_displacement(&points[0]);
-            let rmf_a = particle.get_displacement(&points[1]);
+            let rmi_a = unsafe { particle.get_displacement(&points.get_unchecked(0)) };
+            let rmf_a = unsafe { particle.get_displacement(&points.get_unchecked(1)) };
             let u = Point {
                 x: multiplier * e.x,
                 y: multiplier * e.y,
